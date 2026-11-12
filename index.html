@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta property="og:title" content="David Nguyen | Product Universe">
-<meta property="og:description" content="I build products that grow businesses. Explore cases and simulations across gaming, EV charging, live streaming, logistics, retail and AI.">
+<meta property="og:description" content="I build products that grow businesses. Explore cases and 3D simulations across EV charging, logistics, live streaming, retail and AI agent crews.">
 </head>
 <body>
 <title>David Nguyen | Product Universe</title>
@@ -271,6 +271,16 @@ footer{padding-block:28px;border-top:1px solid var(--line-soft);font-size:12px;c
 .agent.on{opacity:1;border-color:var(--c)}
 .agent .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:800 14px/1 var(--display);color:#0B1020;background:var(--c)}
 .agent b{display:block;font-size:14px}.agent small{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scene-box{position:relative;height:clamp(360px,52vw,520px);border-radius:14px;border:1px solid var(--line-soft);background:radial-gradient(ellipse at 50% 40%,#16244F 0%,var(--bg) 75%);overflow:hidden;touch-action:pan-y}
+.scene-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+.scene-labels{position:absolute;inset:0;pointer-events:none}
+.slabel{position:absolute;transform:translate(-50%,-100%);background:rgba(11,16,32,.82);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px;line-height:1.25;white-space:nowrap;text-align:center;transition:opacity .2s}
+.slabel b{display:block;font-weight:600}.slabel small{display:block;font-size:10px;color:var(--muted)}
+.slabel.big b{font-size:13px}.slabel.gold{border-color:var(--gold)}.slabel.gold small{color:var(--gold)}.slabel.muted{opacity:.8}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.toggles.row{flex-direction:row;flex-wrap:wrap;gap:4px 20px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 
@@ -393,6 +403,7 @@ footer{padding-block:28px;border-top:1px solid var(--line-soft);font-size:12px;c
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script src="content.js"></script>
+<script src="scenes.js"></script>
 <script src="app.js"></script>
 <script src="world.js"></script>
 

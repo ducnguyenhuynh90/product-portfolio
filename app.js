@@ -122,10 +122,11 @@ function renderReader(id){
 const SIMS = {};
 const GROUPS = [
   ['S5 Tech · AI agent crew', ['crew','luffy','nami']],
+  ['EV charging · VinFast, AmpUp', ['ev-network','ev','command','ev-demo','vf-demo']],
+  ['Logistics · Giao Hàng Nhanh', ['ghn-scale','logistics','ghn-demo']],
+  ['Live streaming · Uplive', ['uplive-lang','live','up-demo']],
   ['Growth lab', ['conversion','experiment','flaws']],
-  ['EV charging', ['ev','ev-demo','command','vf-demo']],
-  ['Live streaming', ['live','up-demo']],
-  ['Logistics & retail', ['logistics','ghn-demo','retail']]
+  ['Retail · Vinmart', ['retail']]
 ];
 
 /* Generic slider sim */
@@ -586,7 +587,119 @@ Object.keys(FLOWS).forEach(id => {
   }};
 });
 
-let currentSim = 'conversion';
+/* ---- 3D case scenes ---- */
+let SCENE = null;
+const hasGL = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && window.SCENES && (c.getContext('webgl2') || c.getContext('webgl'))); } catch(e){ return false; } })();
+const noGL = '<div class="callout warn">3D is not available in this browser. The case page has the same story in text.</div>';
+const legend = items => `<div class="legend">${items.map(([c, l]) => `<span><i style="background:${c}"></i>${esc(l)}</span>`).join('')}</div>`;
+
+/* EV network */
+const EVS = { market:'key', ai:true, wallet:true, hub:false };
+SIMS['ev-network'] = { title:'EV Network in 3D', island:'vinfast', render(stage){
+  stage.innerHTML = head({ island:'vinfast', eyebrow:'VinFast · AmpUp', title:'EV Network in 3D', intro:'Cars arrive, the cloud routes them, chargers fail and recover, drivers pay. Switch strategies and watch waiting time and uptime change. One second of animation is one minute.' }) + `
+    <div class="tabs" id="evm" role="group" aria-label="Market"><button type="button" data-m="key" class="${EVS.market === 'key' ? 'on' : ''}">Key market: in-house network</button><button type="button" data-m="exp" class="${EVS.market === 'exp' ? 'on' : ''}">New market: partner hub</button></div>
+    <div class="toggles row">
+      <label class="tg"><input type="checkbox" id="ev-ai"${EVS.ai ? ' checked' : ''}> AI cloud control</label>
+      <label class="tg"><input type="checkbox" id="ev-wallet"${EVS.wallet ? ' checked' : ''}> Wallet charging</label>
+      <label class="tg" id="ev-hubw"${EVS.market === 'exp' ? '' : ' hidden'}><input type="checkbox" id="ev-hub"${EVS.hub ? ' checked' : ''}> Connect to the largest local network</label>
+    </div>
+    <div id="evscene" class="scene-box"></div>
+    ${legend([['#10B981','Own charger, free'],['#A78BFA','Partner charger'],['#38BDF8','Charging'],['#F87171','Fault'],['#F59E0B','Car waiting or paying']])}
+    <div class="outs" id="evout"></div>
+    <div class="rooms">
+      <div class="room"><small>New markets</small><b>Swarm onto the biggest hub</b><p>Connect once to the largest local network by roaming. Drivers get hundreds of chargers on day one, without building them first.</p></div>
+      <div class="room"><small>Key markets</small><b>Own it, run it from the cloud</b><p>In-house chargers controlled by AI: predict demand, route drivers to a free charger, detect faults and reset remotely. Uptime and experience above the market standard.</p></div>
+      <div class="room"><small>Every market</small><b>Wallet charging</b><p>Plug in and charge. The wallet authorises in the background: no app juggling, no card at the post, no waiting for a failed start.</p></div>
+    </div>
+    <details class="how"><summary>How this works</summary><pre>Cars arrive at a steady rate and ask the network for a charger.
+AI control on : the cloud sends each car to the best free, working charger and re-routes cars stuck in a queue.
+AI control off: drivers go to the nearest charger, even if it is busy or broken.
+Faults happen at random. With AI control the cloud spots and resets them in about 1 minute; without it, about 14.
+Wallet on : authorisation takes seconds and never fails.  Wallet off: app + QR + card, 25% of starts fail and retry.
+Every number is measured from this simulation. It is illustrative, not company data.</pre></details>`;
+  if (!hasGL){ $('#evscene', stage).outerHTML = noGL; return; }
+  const out = $('#evout', stage);
+  SCENE = window.SCENES.evNetwork($('#evscene', stage), { ...EVS }, s => {
+    out.innerHTML = [['Avg wait to start charging', s.wait.toFixed(1) + ' min', s.wait > 3],['Sessions per hour', fmt.int(s.sessions)],['Network uptime', fmt.pct1(s.uptime), s.uptime < .9],['Failed starts per hour', fmt.int(s.fails), s.fails > 5],['Chargers available', fmt.int(s.chargers)],['Cars queuing now', fmt.int(s.queue), s.queue > 6]]
+      .map(([l, v, w]) => `<div class="out${w ? ' warn' : ''}"><span class="v">${v}</span><span class="l">${l}</span></div>`).join(''); });
+  const push = () => SCENE && SCENE.set({ ...EVS });
+  $('#evm', stage).addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; EVS.market = b.dataset.m; stage.querySelectorAll('#evm [data-m]').forEach(x => x.classList.toggle('on', x === b)); $('#ev-hubw', stage).hidden = EVS.market !== 'exp'; push(); });
+  [['ev-ai','ai'],['ev-wallet','wallet'],['ev-hub','hub']].forEach(([id, k]) => $('#' + id, stage).addEventListener('change', e => { EVS[k] = e.target.checked; push(); }));
+}};
+
+/* GHN */
+const GH = { scale:false, track:false, fixed:0 };
+const GH_REASONS = ['Customer unreachable','Wrong or incomplete address','Missed line-haul cut-off','Courier over capacity','Damaged or mis-sorted'];
+const GH_SHARE = [30,25,20,15,10];
+const GH_OT = [.46,.62,.755,.862,.942,.996];
+SIMS['ghn-scale'] = { title:'Network Scale-up in 3D', island:'ghn', render(stage){
+  stage.innerHTML = head({ island:'ghn', title:'Network Scale-up in 3D', intro:'From three centres to a nationwide network. Then break delivery into steps, track every failure reason, and fix the biggest one first.' }) + `
+    <div class="tabs" id="ghs"><button type="button" data-s="0" class="${GH.scale ? '' : 'on'}">When I joined · 3 centres</button><button type="button" data-s="1" class="${GH.scale ? 'on' : ''}">At scale · 64 centres</button></div>
+    <div id="ghscene" class="scene-box"></div>
+    ${legend([['#FB923C','Sort hub'],['#38BDF8','Delivery centre'],['#10B981','Delivered on time'],['#F87171','Late or failed']])}
+    <div class="outs" id="ghout"></div>
+    <div class="blk" style="gap:10px"><b style="font-size:14px">Delivery funnel, step by step</b>
+      <div class="flow">${['Order created','Pickup','Hub sort','Line-haul','Centre sort','Out for delivery','Delivered'].map(s => `<div class="st"><b>${s}</b>fail reasons tracked</div>`).join('')}</div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label class="tg"><input type="checkbox" id="gh-track"${GH.track ? ' checked' : ''}> Track every failure reason</label>
+      <button class="btn primary sm" type="button" id="gh-fix">Fix the biggest reason</button><button class="btn sm" type="button" id="gh-reset">Reset</button></div>
+    <div id="ghbins"></div>
+    <div class="callout">Learned from Amazon's operating practice: measure every step, find the root cause of every miss, standardise the fix, then scale the network.</div>
+    <details class="how"><summary>How this works</summary><pre>Packages fly from a sort hub to a delivery centre, then to a home.
+Each package is late or failed with probability (1 − on-time rate).
+Tracking assigns each miss a reason. Fixing removes the biggest remaining reason.
+On-time: 46% at the start and 99.6% at the end are reported; the steps between are illustrative.
+Failure categories are examples. Package counts on screen are visual, not literal volumes.</pre></details>`;
+  if (!hasGL){ $('#ghscene', stage).outerHTML = noGL; }
+  const shares = () => GH_SHARE.map((s, i) => i < GH.fixed ? 0 : s);
+  const st = () => ({ scale:GH.scale, track:GH.track, onTime:GH_OT[GH.fixed], shares:shares() });
+  const draw = s => {
+    $('#ghout', stage).innerHTML = [['Delivery centres', GH.scale ? '64' : '3'],['Orders per day', GH.scale ? '30,000' : '300'],['On-time delivery', (GH_OT[GH.fixed] * 100).toFixed(GH.fixed === 5 ? 1 : 0) + '%']]
+      .map(([l, v]) => `<div class="out"><span class="v">${v}</span><span class="l">${l}</span></div>`).join('');
+    const b = s?.bins || [0,0,0,0,0], mx = Math.max(1, ...b);
+    $('#ghbins', stage).innerHTML = GH.track ? `<div class="callout"><b>Misses grouped by reason</b> <span class="muted" style="font-size:12px">· example categories</span>${GH_REASONS.map((r, i) => `<div class="frow" style="margin-top:8px"><span style="${i < GH.fixed ? 'text-decoration:line-through;color:var(--dim)' : ''}">${r}</span><span class="track"><i style="width:${b[i] / mx * 100}%;background:${i < GH.fixed ? 'var(--line)' : 'var(--red)'}"></i></span><span class="n">${i < GH.fixed ? '<span class="ok">fixed</span>' : fmt.int(b[i])}</span></div>`).join('')}</div>` : '';
+    $('#gh-fix', stage).disabled = !GH.track || GH.fixed >= 5;
+  };
+  if (hasGL) SCENE = window.SCENES.ghn($('#ghscene', stage), st(), draw);
+  draw();
+  const push = extra => { if (SCENE) SCENE.set({ ...st(), ...extra }); draw(); };
+  $('#ghs', stage).addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b) return; GH.scale = b.dataset.s === '1'; stage.querySelectorAll('#ghs [data-s]').forEach(x => x.classList.toggle('on', x === b)); push(); });
+  $('#gh-track', stage).addEventListener('change', e => { GH.track = e.target.checked; push({ resetBins:true }); });
+  $('#gh-fix', stage).addEventListener('click', () => { if (GH.fixed < 5){ GH.fixed++; push({ resetBins:true }); } });
+  $('#gh-reset', stage).addEventListener('click', () => { GH.fixed = 0; GH.track = false; $('#gh-track', stage).checked = false; push({ resetBins:true }); });
+}};
+
+/* Uplive */
+const UP = { mode:'lang', opt:false };
+const SOURCES = [['Channel A', 25, 1.0],['Channel B', 20, 2.4],['Channel C', 25, .6],['Channel D', 15, 3.1],['Channel E', 15, .4]];
+SIMS['uplive-lang'] = { title:'Language-first Expansion in 3D', island:'uplive', render(stage){
+  stage.innerHTML = head({ island:'uplive', title:'Language-first Expansion in 3D', intro:'Launch by language, not by country: one Chinese-language release tests Hong Kong, Taiwan, Malaysia and Singapore at once. Invest where the return shows up.' }) + `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div class="tabs" id="upm"><button type="button" data-m="lang" class="${UP.mode === 'lang' ? 'on' : ''}">Launch by language</button><button type="button" data-m="country" class="${UP.mode === 'country' ? 'on' : ''}">Launch by country</button></div><button class="btn primary sm" type="button" id="up-go">Run the launch</button></div>
+    <div id="upscene" class="scene-box"></div>
+    ${legend([['#F472B6','Chinese'],['#F59E0B','Arabic'],['#38BDF8','Spanish'],['#10B981','Live today']])}
+    <div class="outs" id="upout"></div>
+    <div class="simgrid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+      <div class="callout"><b>Traffic-source optimisation</b> <span class="muted" style="font-size:12px">· example channels</span>
+        <label class="tg" style="margin-top:6px"><input type="checkbox" id="up-opt"${UP.opt ? ' checked' : ''}> Shift budget to the sources with the highest pay rate</label><div id="upsrc"></div></div>
+      <div class="callout"><b>Reported results</b><ul style="margin:8px 0 0;padding-left:18px"><li>Paying-user rate about <b>5× Bigo's</b>, which made growth faster and more profitable</li><li>Live in <b>50+ countries</b> today</li></ul></div>
+    </div>
+    <details class="how"><summary>How this works</summary><pre>By language: one release per language reaches every market that speaks it. Each market's return is measured, and the best one gets investment.
+By country: each market is launched and measured on its own, one after another.
+Weeks per launch, market returns and channels are illustrative. The 5× pay rate and 50+ countries are reported results.</pre></details>`;
+  const drawSrc = () => { const act = UP.opt ? SOURCES.map(s => [s[0], s[2] >= 1 ? s[1] / .55 * 1 : 0, s[2]]) : SOURCES; const tot = act.reduce((a, s) => a + s[1], 0); const blended = act.reduce((a, s) => a + s[1] / tot * s[2], 0);
+    $('#upsrc', stage).innerHTML = act.map(s => `<div class="frow" style="grid-template-columns:90px minmax(0,1fr) 110px;margin-top:6px"><span>${s[0]}</span><span class="track"><i style="width:${s[1] / tot * 100}%;background:${s[2] >= 1 ? 'var(--emerald)' : 'var(--line)'}"></i></span><span class="n">${(s[1] / tot * 100).toFixed(0)}% · ${s[2].toFixed(1)}%</span></div>`).join('') + `<p style="margin-top:8px;font-size:14px">Blended pay rate: <b>${blended.toFixed(2)}%</b></p>`; };
+  const draw = s => { $('#upout', stage).innerHTML = [['Weeks elapsed', s ? Math.round(s.week) : 0],['Markets tested', s ? s.tested : 0],['Invest next in', s && s.invest.length ? s.invest.join(', ') : '—']]
+    .map(([l, v]) => `<div class="out"><span class="v" style="${typeof v === 'string' && v.length > 6 ? 'font-size:16px' : ''}">${v}</span><span class="l">${l}</span></div>`).join(''); };
+  draw(); drawSrc();
+  if (!hasGL){ $('#upscene', stage).outerHTML = noGL; }
+  else SCENE = window.SCENES.uplive($('#upscene', stage), { ...UP }, draw);
+  $('#upm', stage).addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; UP.mode = b.dataset.m; stage.querySelectorAll('#upm [data-m]').forEach(x => x.classList.toggle('on', x === b)); SCENE && SCENE.set({ mode:UP.mode, go:true }); });
+  $('#up-go', stage).addEventListener('click', () => SCENE && SCENE.set({ mode:UP.mode, go:true }));
+  $('#up-opt', stage).addEventListener('change', e => { UP.opt = e.target.checked; drawSrc(); });
+  setTimeout(() => SCENE && SCENE.set({ mode:UP.mode, go:true }), 600);
+}};
+
+let currentSim = 'crew';
 function renderSimNav(){
   $('#simnav').innerHTML = GROUPS.map(g => `<div><h4>${esc(g[0])}</h4><div class="grp">${g[1].map(id => `<button type="button" data-sim="${id}" style="--acc:${islandById(SIMS[id].island).acc}">${esc(SIMS[id].title)}</button>`).join('')}</div></div>`).join('');
   $('#simnav').addEventListener('click', e => { const b = e.target.closest('[data-sim]'); if (b) go('sim-' + b.dataset.sim, true); });
@@ -594,6 +707,7 @@ function renderSimNav(){
 function openSim(id){
   if (!SIMS[id]) id = 'crew';
   currentSim = id;
+  if (SCENE){ SCENE.dispose(); SCENE = null; }
   document.querySelectorAll('#simnav [data-sim]').forEach(b => { b.classList.toggle('on', b.dataset.sim === id); b.setAttribute('aria-current', b.dataset.sim === id ? 'true' : 'false'); });
   const stage = $('#stage'); stage.style.setProperty('--acc', islandById(SIMS[id].island).acc);
   SIMS[id].render(stage);
