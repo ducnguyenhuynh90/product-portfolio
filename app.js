@@ -81,7 +81,23 @@ function crewExtra(){
   </div>`;
 }
 
+let RSCENE = null;
+const RMAP = { s5:['crew','crew'], ampup:['ev','ev-network'], vinfast:['ev','ev-network'], uplive:['up','uplive-lang'], ghn:['ghn','ghn-scale'], vinmart:['retail','vinmart-store'] };
+function mountReaderScene(c){
+  if (RSCENE){ RSCENE.dispose(); RSCENE = null; }
+  const box = document.getElementById('rscene'); if (!box) return;
+  if (!hasGL){ box.outerHTML = noGL; return; }
+  const k = RMAP[c.id][0], SC = window.SCENES;
+  if (k === 'crew'){ const sc = SC.crew(box, {}); const seq = CREW_SCENARIOS[0].steps.map(x => x[0]); let i = 0;
+    const step = () => { if (i === 0) sc.set({ reset:true, start:'nami', alarm:true }); else sc.set({ agent:seq[i] }); i = (i + 1) % seq.length; };
+    step(); const iv = setInterval(step, 1800); RSCENE = { dispose(){ clearInterval(iv); sc.dispose(); } }; }
+  else if (k === 'ev') RSCENE = SC.evNetwork(box, c.id === 'vinfast' ? { market:'exp', ai:true, wallet:true, hub:true } : { market:'key', ai:true, wallet:true, hub:false }, () => {});
+  else if (k === 'ghn') RSCENE = SC.ghn(box, { scale:true, track:false, onTime:.996, shares:[0,0,0,0,0] }, () => {});
+  else if (k === 'up'){ const sc = SC.uplive(box, { mode:'lang' }, () => {}); setTimeout(() => sc.set({ mode:'lang', go:true }), 500); RSCENE = sc; }
+  else if (k === 'retail') RSCENE = SC.retail(box, { disc:85, inv:98, chk:80 }, () => {});
+}
 function renderReader(id){
+  if (RSCENE){ RSCENE.dispose(); RSCENE = null; }
   const c = caseById(id) || S.cases[0];
   const isl = islandById(c.id);
   document.querySelectorAll('.ccard').forEach(b => b.classList.toggle('on', b.dataset.case === c.id));
@@ -106,6 +122,7 @@ function renderReader(id){
         <div><dt>Team</dt><dd>${tx(c.team)}</dd></div>
       </dl>
     </div>
+    <div class="blk" style="max-width:none;gap:8px"><div class="scene-box" id="rscene"></div><p class="muted" style="font-size:13px">Live 3D model · drag to rotate · <a href="#sim-${RMAP[c.id][1]}">Open the full simulation</a></p></div>
     <div class="blk"><h4>Context</h4><p>${tx(c.context)}</p></div>
     <div class="blk"><h4>Problem</h4><p>${tx(c.problem)}</p></div>
     <div class="blk"><h4>My role</h4><p>${tx(c.myrole)}</p></div>
@@ -116,6 +133,7 @@ function renderReader(id){
       <p class="muted" style="font-size:14px">${tx(c.outcomeNote)}</p></div>
     <div class="blk"><h4>Try it</h4><div style="display:flex;gap:8px;flex-wrap:wrap">${sims}</div></div>
     <p class="lesson">“${esc(c.lesson)}”</p>`;
+  mountReaderScene(c);
 }
 
 /* ---------- SIMULATIONS ---------- */
@@ -126,7 +144,7 @@ const GROUPS = [
   ['Logistics · Giao Hàng Nhanh', ['ghn-scale','logistics','ghn-demo']],
   ['Live streaming · Uplive', ['uplive-lang','live','up-demo']],
   ['Growth lab', ['conversion','experiment','flaws']],
-  ['Retail · Vinmart', ['retail']]
+  ['Retail · Vinmart', ['vinmart-store','retail']]
 ];
 
 /* Generic slider sim */
@@ -371,6 +389,12 @@ Expected values only; a real test also has random noise.</pre></details>`;
 }};
 
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* ---- 3D case scenes ---- */
+let SCENE = null;
+const hasGL = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && window.SCENES && (c.getContext('webgl2') || c.getContext('webgl'))); } catch(e){ return false; } })();
+const noGL = '<div class="callout warn">3D is not available in this browser. The case page has the same story in text.</div>';
+const legend = items => `<div class="legend">${items.map(([c, l]) => `<span><i style="background:${c}"></i>${esc(l)}</span>`).join('')}</div>`;
+
 /* ---- Agent Crew: full loop ---- */
 const CREW_SCENARIOS = [
   { id:'alert', n:'A metric breaks overnight', d:'Nami spots a drop; the crew finds the cause and drafts the fix', steps:[
@@ -396,21 +420,24 @@ const CREW_SCENARIOS = [
 ];
 let CREW = { id:'alert' };
 SIMS.crew = { title:'Agent Crew Loop', island:'s5', render(stage){
-  const def = { island:'s5', title:'Agent Crew Loop', intro:'Pick a starting point and watch Nami, Zoro and Luffy hand the work along until a person decides. Scripted demo; the data in it is synthetic.', noBadge:true };
+  const def = { island:'s5', title:'Agent Crew Loop', intro:'Pick a starting point and watch the work move through the crew\'s headquarters: Nami spots, Zoro investigates and writes, Luffy gates, a person decides. Scripted demo; the data in it is synthetic.', noBadge:true };
   stage.innerHTML = head(def) + `<div class="personas" id="scn">${CREW_SCENARIOS.map(s => `<button type="button" class="persona${s.id === CREW.id ? ' on' : ''}" data-s="${s.id}" aria-pressed="${s.id === CREW.id}"><b>${esc(s.n)}</b><span>${esc(s.d)}</span></button>`).join('')}</div>
-    <div class="crewbar" id="cbar">${Object.entries(AGENTS).map(([k, a]) => `<div class="agent" data-a="${k}" style="--c:${a.c}"><span class="av">${a.n[0]}</span><span><b>${esc(a.n)}</b><small>${esc(a.r)}</small></span></div>`).join('')}</div>
+    <div id="crewscene" class="scene-box"></div>
     <div id="crewout"></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="button" id="replay">Replay</button></div>`;
   let timers = [];
   const run = () => {
     timers.forEach(clearTimeout); timers = [];
     const s = CREW_SCENARIOS.find(x => x.id === CREW.id), o = $('#crewout', stage);
-    const setActive = k => stage.querySelectorAll('.agent').forEach(a => a.classList.toggle('on', a.dataset.a === k));
+    const start = { alert:'nami', research:'zoro', idea:'human' }[s.id];
+    if (SCENE && SCENE.set) SCENE.set({ reset:true, start, alarm:s.id === 'alert' });
+    const setActive = (k, i) => { if (!SCENE || !SCENE.set) return; if (!s.pass && i === 1) return; SCENE.set({ agent:k, fail:!s.pass && i === 0 }); };
     o.innerHTML = `<div class="steps">${s.steps.map((st, i) => { const a = AGENTS[st[0]]; const last = st[0] === 'human';
       return `<div class="step ${reduce ? 'lit' : 'off'}${!s.pass && i === 0 ? ' fail' : ''}" style="--acc:${a.c}" data-i="${i}"><span class="k">${a.n[0]}</span><div><b>${esc(st[1])} <span class="muted" style="font-weight:400;font-size:12px">· ${esc(a.n)}</span></b><p>${esc(st[2])}</p>${last ? `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm primary" type="button" data-hd="ok">Approve</button><button class="btn sm" type="button" data-hd="back">Send back</button></div><p class="hdr" style="margin-top:8px;font-size:14px" aria-live="polite"></p>` : ''}</div></div>`; }).join('')}</div>`;
     o.querySelectorAll('[data-hd]').forEach(b => b.addEventListener('click', () => { o.querySelector('.hdr').textContent = b.dataset.hd === 'ok' ? 'Approved. Logged as learning for Luffy\'s rubric; Nami will track the result.' : 'Sent back with notes. Zoro revises and resubmits.'; }));
-    if (reduce){ setActive(s.steps[s.steps.length - 1][0]); return; }
-    o.querySelectorAll('.step').forEach((el, i) => timers.push(setTimeout(() => { el.classList.remove('off'); el.classList.add('lit'); setActive(s.steps[i][0]); }, 200 + i * 650)));
+    if (reduce){ s.steps.forEach((x, i) => setActive(x[0], i)); return; }
+    o.querySelectorAll('.step').forEach((el, i) => timers.push(setTimeout(() => { el.classList.remove('off'); el.classList.add('lit'); setActive(s.steps[i][0], i); }, 400 + i * 1500)));
   };
+  if (hasGL) SCENE = window.SCENES.crew($('#crewscene', stage), {}); else $('#crewscene', stage).outerHTML = noGL;
   $('#scn', stage).addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b) return; CREW.id = b.dataset.s; stage.querySelectorAll('[data-s]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); run(); });
   $('#replay', stage).addEventListener('click', run);
   run();
@@ -587,12 +614,6 @@ Object.keys(FLOWS).forEach(id => {
   }};
 });
 
-/* ---- 3D case scenes ---- */
-let SCENE = null;
-const hasGL = (() => { try { const c = document.createElement('canvas'); return !!(window.THREE && window.SCENES && (c.getContext('webgl2') || c.getContext('webgl'))); } catch(e){ return false; } })();
-const noGL = '<div class="callout warn">3D is not available in this browser. The case page has the same story in text.</div>';
-const legend = items => `<div class="legend">${items.map(([c, l]) => `<span><i style="background:${c}"></i>${esc(l)}</span>`).join('')}</div>`;
-
 /* EV network */
 const EVS = { market:'key', ai:true, wallet:true, hub:false };
 SIMS['ev-network'] = { title:'EV Network in 3D', island:'vinfast', render(stage){
@@ -697,6 +718,32 @@ Weeks per launch, market returns and channels are illustrative. The 5× pay rate
   $('#up-go', stage).addEventListener('click', () => SCENE && SCENE.set({ mode:UP.mode, go:true }));
   $('#up-opt', stage).addEventListener('change', e => { UP.opt = e.target.checked; drawSrc(); });
   setTimeout(() => SCENE && SCENE.set({ mode:UP.mode, go:true }), 600);
+}};
+
+
+/* Vinmart store */
+const VM = { disc:35, inv:80, chk:25 };
+SIMS['vinmart-store'] = { title:'Smart Supermarket in 3D', island:'vinmart', render(stage){
+  const inputs = [['disc','Product discovery (zones, signage, search)',0,100,5,VM.disc,P],['inv','Inventory availability',60,100,1,VM.inv,P],['chk','Checkout speed (lanes, self-checkout)',0,100,5,VM.chk,P]];
+  stage.innerHTML = head({ island:'vinmart', title:'Smart Supermarket in 3D', intro:'Shoppers come in with a list of three items, search the aisles, find them or not, then queue to pay. Every score is measured from what happens to each shopper.' }) + `
+    <div id="vmscene" class="scene-box"></div>
+    ${legend([['#10B981','Found the item'],['#F87171','Item out of stock'],['#F59E0B','Queuing'],['#38BDF8','Zone signs (discovery ≥ 50%)']])}
+    <div class="simgrid"><div class="controls">${inputs.map(i => ctl('vm', i)).join('')}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary sm" type="button" id="vm-best">Apply the improvements</button><button class="btn sm" type="button" id="vm-base">Back to the start</button></div></div><div class="outs" id="vmout"></div></div>
+    <details class="how"><summary>How this works</summary><pre>Each shopper has three items. Low discovery means some walk an extra aisle to search.
+Each shelf slot is stocked with probability = inventory availability.
+Open checkout lanes = 2 + 4 × checkout speed; pay time falls with speed.
+Shopper score = 9.6 − 2.2 × missing items − 0.45 × minutes queuing − 0.7 × extra aisles searched (0 to 10).
+Illustrative model. The reported 4.5 → 8.0 customer score used a scale still to be confirmed.</pre></details>`;
+  const out = $('#vmout', stage);
+  const draw = s => { out.innerHTML = [['Customer score (0–10)', s.n ? s.sat.toFixed(1) : 'Measuring', s.n && s.sat < 6],['Items found', s.n ? fmt.pct(s.found) : 'Measuring', s.n && s.found < .9],['Avg checkout wait', s.n ? s.wait.toFixed(1) + ' min' : 'Measuring', s.n && s.wait > 3],['Avg trip', s.n ? s.time.toFixed(0) + ' min' : 'Measuring']]
+    .map(([l, v, w]) => `<div class="out${w ? ' warn' : ''}"><span class="v"${v === 'Measuring' ? ' style="font-size:16px;color:var(--muted)"' : ''}>${v}</span><span class="l">${l}</span></div>`).join(''); };
+  draw({ n:0 });
+  if (!hasGL){ $('#vmscene', stage).outerHTML = noGL; return; }
+  SCENE = window.SCENES.retail($('#vmscene', stage), { ...VM }, draw);
+  let tm; bindSliders(stage, 'vm', inputs, VM, () => { clearTimeout(tm); tm = setTimeout(() => SCENE && SCENE.set({ ...VM }), 150); });
+  const setAll = v => { Object.assign(VM, v); inputs.forEach(i => { const el = $('#vm-' + i[0], stage); el.value = VM[i[0]]; $('#vm-' + i[0] + '-o', stage).textContent = P(VM[i[0]]); }); SCENE && SCENE.set({ ...VM }); };
+  $('#vm-best', stage).addEventListener('click', () => setAll({ disc:85, inv:98, chk:80 }));
+  $('#vm-base', stage).addEventListener('click', () => setAll({ disc:35, inv:80, chk:25 }));
 }};
 
 let currentSim = 'crew';

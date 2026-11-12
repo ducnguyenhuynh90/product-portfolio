@@ -29,7 +29,7 @@ window.SITE = {
     { id:'vinfast', name:'VinFast / V-Green', sub:'Charging infrastructure', acc:'#34D399', acc2:'#38BDF8', kind:'grid', sim:'ev-network' },
     { id:'uplive', name:'Uplive', sub:'Live streaming', acc:'#F472B6', acc2:'#8B5CF6', kind:'live', sim:'uplive-lang' },
     { id:'ghn', name:'Giao Hàng Nhanh', sub:'Logistics', acc:'#FB923C', acc2:'#38BDF8', kind:'logi', sim:'ghn-scale' },
-    { id:'vinmart', name:'Vinmart', sub:'Retail experience', acc:'#38BDF8', acc2:'#10B981', kind:'retail', sim:'retail' }
+    { id:'vinmart', name:'Vinmart', sub:'Retail experience', acc:'#38BDF8', acc2:'#10B981', kind:'retail', sim:'vinmart-store' }
   ],
   center: { id:'leadership', name:'Product Leadership', sub:'Strategy · Growth · AI · Team', acc:'#F8FAFC' },
 
@@ -127,7 +127,7 @@ window.SITE = {
       problem:'[TBD: the specific challenge]',
       myrole:'[TBD]',
       decisions:[], outcome:['vinmart-sat'], outcomeNote:'Reported outcome; the scale must be confirmed before calling it NPS.',
-      sims:['retail'],
+      sims:['vinmart-store','retail'],
       lesson:'Customer experience is the cumulative result of many small operational and product decisions.'
     }
   ],

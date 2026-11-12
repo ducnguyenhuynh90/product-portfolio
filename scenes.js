@@ -278,5 +278,140 @@ function uplive(el, state, onStats){
   return { set(s){ Object.assign(state, s); if (s.go) start(); }, dispose:S.dispose };
 }
 
-window.SCENES = { evNetwork, ghn, uplive };
+/* =========================================================
+   4. AGENT CREW HQ: Nami → Zoro → Luffy → person
+   ========================================================= */
+function crew(el, state){
+  const S = stage(el, { theta:.15, phi:.72, r:40, target:new (T().Vector3)(0, 1, 1), aria:'Agent crew headquarters: Nami monitors, Zoro researches, Luffy gates, a person decides; work packets move between them' });
+  const { THREE, scene } = S, K = kit(THREE);
+  const C = { nami:0xF472B6, zoro:0x10B981, luffy:0xF59E0B, human:0x38BDF8 };
+  scene.add(K.mesh(new THREE.CylinderGeometry(15, 14, 1, 40), K.M(0x141E3A), 0, -.5, 0));
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(15, .08, 6, 80), K.E(0x38BDF8, .5)); rim.rotation.x = Math.PI/2; scene.add(rim);
+  const P = { nami:new THREE.Vector3(-9, 0, 1), zoro:new THREE.Vector3(-3, 0, -6), luffy:new THREE.Vector3(4, 0, -5), human:new THREE.Vector3(9, 0, 2) };
+  const st = {};
+  Object.entries(P).forEach(([k, p]) => {
+    const g = new THREE.Group(); g.position.copy(p); scene.add(g);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, .2, 32), K.M(0x1C2846)); pad.position.y = .1; g.add(pad);
+    const glow = new THREE.Mesh(new THREE.RingGeometry(2.7, 3.2, 40), new THREE.MeshBasicMaterial({ color:C[k], transparent:true, opacity:.15, side:THREE.DoubleSide })); glow.rotation.x = -Math.PI/2; glow.position.y = .22; g.add(glow);
+    st[k] = { g, glow, on:0 };
+  });
+  // Nami: alarm tower + report screens
+  const n = st.nami.g; n.add(K.mesh(new THREE.CylinderGeometry(.35, .5, 4.4, 8), K.M(0x2A2350), 0, 2.4, 0));
+  const beacon = K.mesh(new THREE.SphereGeometry(.55, 14, 10), K.E(C.nami, 1), 0, 4.9, 0); n.add(beacon);
+  const ping = new THREE.Mesh(new THREE.TorusGeometry(.8, .05, 6, 32), new THREE.MeshBasicMaterial({ color:C.nami, transparent:true })); ping.rotation.x = Math.PI/2; ping.position.y = 4.9; n.add(ping);
+  [-1.3, 1.3].forEach((x, i) => { const s = K.box(1.6, 1.1, .1, K.M(0x0F172A), x, .6, 1.2); n.add(s); for (let j = 0; j < 4; j++){ const b = K.box(.22, .2 + j * .15, .04, K.E(i ? 0xF87171 : C.nami, .9), x - .5 + j * .33, .75, 1.27); b.userData.base = .2 + j * .15; n.add(b); st.nami.bars = (st.nami.bars || []).concat(b); } });
+  // Zoro: data tower, dish, analysis screens
+  const z = st.zoro.g; z.add(K.mesh(new THREE.CylinderGeometry(.45, .6, 4, 8), K.M(0x1F3A3A), 0, 2.2, 0));
+  const rings = [0, 1, 2].map(i => { const r = new THREE.Mesh(new THREE.TorusGeometry(.9, .05, 6, 28), K.E(C.zoro, .9)); r.rotation.x = Math.PI/2; r.position.y = 1.3 + i * 1.1; z.add(r); return r; });
+  const dish = K.mesh(new THREE.SphereGeometry(.8, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2.4), K.M(0xCBD5E1), 1.8, 1.4, .6); dish.rotation.x = -.8; z.add(dish); z.add(K.box(.15, .9, .15, K.M(0x94A3B8), 1.8, 0, .6));
+  const curve = []; for (let j = 0; j < 7; j++){ const b = K.box(.2, .3, .2, K.E(C.zoro, .8), -1.9 + j * .3, .3, 1.4); curve.push(b); z.add(b); }
+  // Luffy: gate
+  const L = st.luffy.g; const gate = new THREE.Group(); L.add(gate); gate.rotation.y = -.5;
+  gate.add(K.box(.4, 3, .4, K.M(0xE2E8F0), -1.3, 0, 0)); gate.add(K.box(.4, 3, .4, K.M(0xE2E8F0), 1.3, 0, 0));
+  const lintel = K.box(3.2, .4, .5, K.E(C.luffy, 1), 0, 3, 0); gate.add(lintel);
+  const scan = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.8), new THREE.MeshBasicMaterial({ color:C.luffy, transparent:true, opacity:.12, side:THREE.DoubleSide })); scan.position.y = 1.5; gate.add(scan);
+  // Human desk
+  const H = st.human.g; H.add(K.box(2.2, .8, 1.2, K.M(0x22315A), 0, 0, 0)); H.add(K.box(1.6, .9, .08, K.E(C.human, .7), 0, .85, -.4));
+  H.add(K.mesh(new THREE.CapsuleGeometry(.3, .7, 4, 10), K.M(0xF8FAFC), 0, .9, 1.1)); H.add(K.mesh(new THREE.SphereGeometry(.28, 12, 8), K.M(0xF8FAFC), 0, 1.75, 1.1));
+  // Agent figures
+  const figs = {}; [['nami', 6], ['zoro', 5.6], ['luffy', 4.4]].forEach(([k, h]) => { const f = K.mesh(new THREE.OctahedronGeometry(.6), K.E(C[k], 1), 0, h, 0); st[k].g.add(f); figs[k] = { f, h }; });
+  S.label('<b>Nami</b><small>reports &amp; alerts</small>', st.nami.g, 7.2);
+  S.label('<b>Zoro</b><small>research, simulation, tickets</small>', st.zoro.g, 6.8);
+  S.label('<b>Luffy</b><small>gatekeeper</small>', st.luffy.g, 5.6);
+  S.label('<b>Product lead</b><small>decides</small>', st.human.g, 3);
+  // links + packet
+  const link = (a, b) => { const m = P[a].clone().add(P[b]).multiplyScalar(.5).setY(5); return new THREE.QuadraticBezierCurve3(P[a].clone().setY(2.5), m, P[b].clone().setY(2.5)); };
+  [['nami','zoro'],['zoro','luffy'],['luffy','human'],['luffy','zoro']].forEach(([a, b], i) => { if (i === 3) return; const c = link(a, b); const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(c.getPoints(30)), new THREE.LineDashedMaterial({ color:0x94A3B8, dashSize:.3, gapSize:.25, transparent:true, opacity:.4 })); l.computeLineDistances(); scene.add(l); });
+  const packet = K.mesh(new THREE.BoxGeometry(.6, .6, .6), K.E(0xF8FAFC, 1.4), P.nami.x, 2.5, P.nami.z); scene.add(packet);
+  let hop = null, cur = 'nami', gateFail = 0, gatePass = 0, alarm = 0;
+  function go(agent, fail){
+    if (agent === cur && !fail){ st[agent].on = 1; return; }
+    if (fail){ gateFail = 2.5; st.luffy.on = 1; if (cur !== 'luffy') hop = { c:link(cur, 'luffy'), t:0, to:'luffy', bounce:true }; else hop = { c:link('luffy', 'zoro'), t:0, to:'zoro', red:true }; return; }
+    hop = { c:link(cur, agent), t:0, to:agent };
+    if (cur === 'luffy' && agent !== 'zoro') gatePass = 2;
+  }
+  S.onTick((dt, t) => {
+    const sp = reduce ? 10 : 1;
+    // ambient
+    ping.scale.setScalar(1 + ((t * .8) % 1) * 2.5); ping.material.opacity = (1 - (t * .8) % 1) * (alarm > 0 ? 1 : .35);
+    beacon.material.emissiveIntensity = alarm > 0 ? 1 + Math.sin(t * 12) * .9 : .8; alarm -= dt;
+    st.nami.bars.forEach((b, i) => { b.scale.y = 1 + Math.sin(t * 2 + i) * .3; });
+    rings.forEach((r, i) => { r.rotation.z = t * (.6 + i * .3); }); dish.rotation.z = Math.sin(t * .6) * .7;
+    curve.forEach((b, j) => { b.scale.y = 1 + 2.5 * (.5 + .5 * Math.sin(t * 1.5 + j * .7)); });
+    scan.position.y = 1.5 + Math.sin(t * 2) * .9;
+    Object.entries(figs).forEach(([k, o], i) => { o.f.rotation.y = t * 1.2 + i; o.f.position.y = o.h + Math.sin(t * 2 + i) * .15; });
+    Object.entries(st).forEach(([k, s]) => { s.on = Math.max(0, s.on - dt * .35); s.glow.material.opacity = .12 + s.on * .6; });
+    lintel.material.emissive.setHex(gateFail > 0 ? 0xF87171 : gatePass > 0 ? 0x10B981 : C.luffy); gateFail -= dt; gatePass -= dt;
+    scan.material.color.setHex(gateFail > 0 ? 0xF87171 : gatePass > 0 ? 0x10B981 : C.luffy);
+    if (hop){ hop.t = Math.min(1, hop.t + dt * .9 * sp); packet.position.copy(hop.c.getPoint(hop.t)); packet.rotation.y = t * 3; packet.rotation.x = t * 2;
+      packet.material.emissive.setHex(hop.red ? 0xF87171 : 0xF8FAFC);
+      if (hop.t >= 1){ cur = hop.to; st[cur].on = 1; const h = hop; hop = null; if (h.bounce) hop = { c:link('luffy', 'zoro'), t:0, to:'zoro', red:true }; } }
+    else { packet.position.y = 2.5 + Math.sin(t * 3) * .15; packet.rotation.y = t; }
+  });
+  return { set(s){ if (s.reset){ cur = s.start || 'nami'; hop = null; packet.position.copy(P[cur]).setY(2.5); alarm = s.alarm ? 6 : 0; Object.values(st).forEach(x => x.on = 0); st[cur].on = 1; }
+      if (s.agent) go(s.agent, s.fail); }, dispose:S.dispose };
+}
+
+/* =========================================================
+   5. VINMART: smart supermarket
+   ========================================================= */
+function retail(el, state, onStats){
+  const S = stage(el, { theta:.55, phi:.85, r:34, target:new (T().Vector3)(0, 0, 0), aria:'Supermarket: shoppers walk aisles to find items, some shelves empty, then queue at checkout' });
+  const { THREE, scene } = S, K = kit(THREE), R = rng(21);
+  scene.add(K.mesh(new THREE.BoxGeometry(32, .4, 22), K.M(0x1A2440), 0, -.2, 0));
+  for (let x = -15; x <= 15; x += 2) scene.add(K.box(.04, .01, 22, K.M(0x222E50), x, 0, 0));
+  // walls
+  scene.add(K.box(32, 2.2, .3, K.M(0x22315A), 0, 0, -11)); scene.add(K.box(.3, 2.2, 22, K.M(0x22315A), -16, 0, 0)); scene.add(K.box(.3, 2.2, 22, K.M(0x22315A), 16, 0, 0));
+  const sign = K.box(6, .9, .2, K.E(0x38BDF8, .8), -12, 2.6, -11); scene.add(sign);
+  // aisles: 5 shelves along z, at x = -10..6
+  const shelfX = [-10, -6, -2, 2, 6], cols = [0x10B981, 0xF59E0B, 0xF472B6, 0x38BDF8, 0xA78BFA];
+  const slots = [];
+  shelfX.forEach((x, si) => { scene.add(K.box(1.2, 2, 12, K.M(0x334155), x, 0, -3));
+    for (let lv = 0; lv < 3; lv++) for (let s = 0; s < 10; s++){ const b = K.box(.5, .45, .9, K.M(cols[si]), x + (s % 2 ? .35 : -.35), .2 + lv * .62, -8.4 + s * 1.2); scene.add(b); slots.push({ b, si, z:-8.4 + s * 1.2 }); } });
+  const zoneSigns = shelfX.map((x, i) => { const g = K.box(1.6, .5, .1, K.E(cols[i], .9), x, 2.6, 3.4); scene.add(g); return g; });
+  // checkouts at front (z = 7)
+  const lanesX = [-6, -3, 0, 3, 6, 9];
+  const lanes = lanesX.map(x => { const g = new THREE.Group(); g.position.set(x, 0, 6.5); g.add(K.box(.9, .9, 2.2, K.M(0x475569))); const light = K.mesh(new THREE.SphereGeometry(.2, 8, 6), K.E(0x10B981, 1), 0, 1.4, 0); g.add(light); scene.add(g); return { g, light, q:[], busy:null, open:true }; });
+  // pickup lockers for online orders
+  const lock = new THREE.Group(); lock.position.set(13, 0, -6); for (let i = 0; i < 3; i++) lock.add(K.box(1, 2.2, 1, K.E(0x0EA5E9, .25), 0, 0, i * 1.1 - 1.1)); scene.add(lock);
+  S.label('<b>Online pickup</b><small>lockers</small>', lock, 3);
+  const entry = new THREE.Vector3(-14, 0, 9.5), exitP = new THREE.Vector3(14, 0, 9.5);
+  S.label('<b>Entrance</b>', { getWorldPosition:v => v.copy(entry) }, 1.6);
+  const shoppers = []; let spawnT = 0, statT = 0; const done = [];
+  function refreshShelves(){ slots.forEach(s => { s.b.visible = R() < state.inv / 100 + .02; }); zoneSigns.forEach(z => z.visible = state.disc >= 50);
+    const open = Math.max(2, Math.round(2 + state.chk / 100 * 4)); lanes.forEach((l, i) => { l.open = i < open; l.light.material.emissive.setHex(l.open ? 0x10B981 : 0x475569); l.light.material.color.setHex(l.open ? 0x10B981 : 0x475569); }); }
+  refreshShelves();
+  function spawn(){
+    const g = new THREE.Group(); g.add(K.mesh(new THREE.CapsuleGeometry(.28, .6, 3, 8), K.M([0xF8FAFC, 0xFDE68A, 0xC7D2FE, 0xFBCFE8][Math.floor(R() * 4)]), 0, .6, 0));
+    const dot = K.mesh(new THREE.SphereGeometry(.16, 8, 6), K.E(0x94A3B8, 1), 0, 1.5, 0); g.add(dot);
+    g.add(K.box(.5, .35, .6, K.M(0xCBD5E1), .5, .15, 0));
+    g.position.copy(entry); scene.add(g);
+    const items = [0, 1, 2].map(() => slots[Math.floor(R() * slots.length)]);
+    const way = []; let search = 0;
+    items.forEach(it => { const x = shelfX[it.si] + (R() < .5 ? -1.3 : 1.3);
+      if (R() > state.disc / 100 * .9 + .1){ const wx = shelfX[Math.floor(R() * 5)] + 1.3; way.push(new THREE.Vector3(wx, 0, 3.8), new THREE.Vector3(wx, 0, -9)); search++; }
+      way.push(new THREE.Vector3(x, 0, 3.8), new THREE.Vector3(x, 0, it.z)); way.push({ pick:it }); way.push(new THREE.Vector3(x, 0, 3.8)); });
+    shoppers.push({ g, dot, way, i:0, st:'walk', t0:spawnT, born:clock, miss:0, search, wait:0 });
+  }
+  let clock = 0;
+  S.onTick((dt, t) => {
+    const sp = reduce ? 0 : 1; clock += dt * sp;
+    spawnT -= dt * sp; if (spawnT <= 0 && shoppers.length < 40){ spawn(); spawnT = .9 + R() * .5; }
+    for (let k = shoppers.length - 1; k >= 0; k--){ const s = shoppers[k];
+      if (s.st === 'walk'){ const w = s.way[s.i];
+        if (!w){ const open = lanes.filter(l => l.open); const lane = open.reduce((a, b) => (b.q.length + (b.busy ? 1 : 0)) < (a.q.length + (a.busy ? 1 : 0)) ? b : a); lane.q.push(s); s.lane = lane; s.st = 'queue'; s.qt = clock; continue; }
+        if (w.pick){ if (!w.pick.b.visible){ s.miss++; s.dot.material.emissive.setHex(0xF87171); } else s.dot.material.emissive.setHex(0x10B981); s.i++; continue; }
+        const d = w.clone().sub(s.g.position); const L = d.length(); if (L < .2){ s.i++; continue; } d.normalize(); s.g.position.addScaledVector(d, Math.min(L, 7.5 * dt * sp)); s.g.rotation.y = Math.atan2(-d.z, d.x); }
+      else if (s.st === 'queue'){ const qi = s.lane.q.indexOf(s); const tgt = s.lane.g.position.clone().add(new THREE.Vector3(0, 0, -1.6 - qi * 1.1)); s.g.position.lerp(tgt, .12); s.dot.material.emissive.setHex(0xF59E0B);
+        if (qi === 0 && !s.lane.busy){ s.lane.q.shift(); s.lane.busy = s; s.st = 'pay'; s.pt = 2.2 - state.chk / 100 * 1.4; s.wait = clock - s.qt; } }
+      else if (s.st === 'pay'){ s.pt -= dt * sp; s.g.position.lerp(s.lane.g.position.clone().add(new THREE.Vector3(.9, 0, 0)), .15); if (s.pt <= 0){ s.lane.busy = null; s.st = 'exit'; } }
+      else if (s.st === 'exit'){ const d = exitP.clone().sub(s.g.position); if (d.length() < .4){ const sat = Math.max(0, Math.min(10, 9.6 - s.miss * 2.2 - s.wait * .45 - s.search * .7)); done.push({ sat, miss:s.miss, wait:s.wait, time:clock - s.born, at:clock }); scene.remove(s.g); shoppers.splice(k, 1); continue; } d.normalize(); s.g.position.addScaledVector(d, 5 * dt * sp); }
+      s.dot.position.y = 1.5 + Math.sin(t * 4 + k) * .06; }
+    statT -= dt; if (statT <= 0){ statT = .5; const w = done.slice(-25); const avg = f => w.length ? w.reduce((a, b) => a + f(b), 0) / w.length : 0;
+      onStats({ sat:avg(x => x.sat), found:w.length ? 1 - avg(x => x.miss) / 3 : 0, wait:avg(x => x.wait), time:avg(x => x.time), n:w.length }); }
+  });
+  return { set(s){ Object.assign(state, s); refreshShelves(); done.length = 0; }, dispose:S.dispose };
+}
+
+window.SCENES = { evNetwork, ghn, uplive, crew, retail };
 })();
